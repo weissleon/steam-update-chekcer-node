@@ -7,7 +7,7 @@ const updateInfoFor = async (pageId, type, properties = {}) => {
           properties: {
             discount_percent: {
               rich_text: [
-                { text: { content: properties.discount_percent || 0 } },
+                { text: { content: properties.discount_percent || "0" } },
               ],
             },
           },
@@ -15,10 +15,12 @@ const updateInfoFor = async (pageId, type, properties = {}) => {
       : {
           properties: {
             build_id: {
-              rich_text: [{ text: { content: properties.build_id || 0 } }],
+              rich_text: [{ text: { content: properties.build_id || "0" } }],
             },
             time_updated: {
-              rich_text: [{ text: { content: properties.time_updated || 0 } }],
+              rich_text: [
+                { text: { content: properties.time_updated || "0" } },
+              ],
             },
           },
         };
@@ -132,7 +134,27 @@ const createDBRowFor = async (appId, type, info = {}) => {
     }
   );
 
-  console.log(response.status);
+  const { id, properties } = response.data;
+
+  const data =
+    type === "discount"
+      ? {
+          id: id,
+          title: properties["title"]["title"][0]["plain_text"],
+          app_id: properties["app_id"]["rich_text"][0]["plain_text"],
+          discount_percent:
+            properties["discount_percent"]["rich_text"][0]["plain_text"],
+        }
+      : {
+          id: id,
+          title: properties["title"]["title"][0]["plain_text"],
+          app_id: properties["app_id"]["rich_text"][0]["plain_text"],
+          build_id: properties["build_id"]["rich_text"][0]["plain_text"],
+          time_updated:
+            properties["time_updated"]["rich_text"][0]["plain_text"],
+        };
+
+  return data;
 };
 
 const getLatestAppBuildInfoFor = async (appId) => {
@@ -167,13 +189,13 @@ const getDiscountInfoFor = async (appId) => {
     response.data[appId]["data"]["price_overview"]["discount_percent"];
 
   const data = {
-    app_id: appId,
-    discount_percent: discountPercent,
+    app_id: `${appId}`,
+    discount_percent: `${discountPercent}`,
   };
-  console.log(data);
+  return data;
 };
 
-const notionEntityExistFor = async (appId, type) => {
+const checkEntryExistFor = async (appId, type) => {
   const dbUrl =
     type.toLowerCase() === "discount"
       ? process.env.URL_DB_DISCOUNT_STATUS
@@ -193,7 +215,35 @@ const notionEntityExistFor = async (appId, type) => {
       },
     }
   );
-  return response.data.results.length > 0;
+
+  const { results } = response.data;
+
+  if (results.length === 0) return { exist: false, data: null };
+
+  const { app_id, title } = results[0].properties;
+  const data =
+    type === "discount"
+      ? {
+          id: results[0].id,
+          title: title["title"][0]["plain_text"],
+          app_id: app_id["rich_text"][0]["plain_text"],
+          discount_percent:
+            results[0].properties["discount_percent"]["rich_text"][0][
+              "plain_text"
+            ],
+        }
+      : {
+          id: results[0].id,
+          title: title["title"][0]["plain_text"],
+          app_id: app_id["rich_text"][0]["plain_text"],
+          build_id:
+            results[0].properties["build_id"]["rich_text"][0]["plain_text"],
+          time_updated:
+            results[0].properties["time_updated"]["rich_text"][0]["plain_text"],
+        };
+  return { exist: true, data: data };
+
+  // return response.data.results.length > 0;
 };
 
 const getAppBaseInfo = async () => {
@@ -215,14 +265,14 @@ const getAppBaseInfo = async () => {
     const { app_id, title, base_price } = result.properties;
     const data = {
       id: result.id,
-      appId: app_id["rich_text"][0]["plain_text"],
+      app_id: app_id["rich_text"][0]["plain_text"],
       title: title["title"][0]["plain_text"],
-      basePrice: base_price["rich_text"][0]["plain_text"],
+      base_price: base_price["rich_text"][0]["plain_text"],
     };
     return data;
   });
 
-  console.log(apps);
+  return apps;
 };
 
 const getAppBuildInfo = async () => {
@@ -245,7 +295,7 @@ const getAppBuildInfo = async () => {
     const data = {
       id: result.id,
       title: title["title"][0]["plain_text"],
-      appId: app_id["rich_text"][0]["plain_text"],
+      app_id: app_id["rich_text"][0]["plain_text"],
       build_id: build_id["rich_text"][0]["plain_text"],
       time_updated: time_updated["rich_text"][0]["plain_text"],
     };
@@ -275,7 +325,7 @@ const getAppDiscountInfo = async () => {
     const data = {
       id: result.id,
       title: title["title"][0]["plain_text"],
-      appId: app_id["rich_text"][0]["plain_text"],
+      app_id: app_id["rich_text"][0]["plain_text"],
       discount_percent: discount_percent["rich_text"][0]["plain_text"],
     };
     return data;
@@ -286,6 +336,74 @@ const getAppDiscountInfo = async () => {
 
 const run = async () => {
   require("dotenv").config();
+  const appBaseInfo = await getAppBaseInfo();
+
+  const updatePromises = [];
+  const updateDiscountList = [];
+  for (let i = 0; i < appBaseInfo.length; i++) {
+    const appId = appBaseInfo[i]["app_id"];
+    const title = appBaseInfo[i]["title"];
+    const promise = getDiscountInfoFor(appId).then(
+      async ({ app_id, discount_percent }) => {
+        const { exist, data } = await checkEntryExistFor(app_id, "discount");
+        if (exist) {
+          if (discount_percent !== data.discount_percent) {
+            await updateInfoFor(data.id, "discount", {
+              discount_percent,
+            });
+            updateDiscountList.push(data);
+          }
+        } else {
+          const data = await createDBRowFor(app_id, "discount", {
+            title,
+            discount_percent,
+          });
+          updateDiscountList.push(data);
+        }
+      }
+    );
+    updatePromises.push(promise);
+  }
+  await Promise.all(updatePromises);
+
+  const buildPromises = [];
+  const updatedBuildList = [];
+  for (let i = 0; i < appBaseInfo.length; i++) {
+    const appId = appBaseInfo[i]["app_id"];
+    const title = appBaseInfo[i]["title"];
+    const promise = getLatestAppBuildInfoFor(appId).then(
+      async ({ app_id, build_id, time_updated }) => {
+        const { exist, data } = await checkEntryExistFor(app_id, "build");
+        if (exist) {
+          if (data.build_id !== build_id) {
+            await updateInfoFor(data.id, "build", {
+              build_id: build_id,
+              time_updated: time_updated,
+            });
+            updatedBuildList.push(data);
+          }
+        } else {
+          const data = await createDBRowFor(app_id, "build", {
+            title,
+            build_id: build_id,
+            time_updated: time_updated,
+          });
+          updatedBuildList.push(data);
+        }
+      }
+    );
+
+    buildPromises.push(promise);
+  }
+  await Promise.all(buildPromises);
+
+  updateDiscountList.forEach((updatedDiscount) => {
+    // Here, the smilehub message will be merged and sent.
+  });
+
+  updatedBuildList.forEach((updatedBuild) => {
+    // Here, the smilehub message will be merged and sent.
+  });
 };
 
 run();
