@@ -397,13 +397,61 @@ const run = async () => {
   }
   await Promise.all(buildPromises);
 
-  updateDiscountList.forEach((updatedDiscount) => {
-    // Here, the smilehub message will be merged and sent.
+  const currentTime = new Date();
+  const year = currentTime.getFullYear();
+  const month = currentTime.getMonth() + 1;
+  const date = currentTime.getDate();
+  const hour = currentTime.getHours();
+  const minute = currentTime.getMinutes();
+
+  let message = "안녕하세요, 스팀 알리미입니다. :la_hello:\n";
+  message += `*${year}년${month.toString().padStart(2, "0")}월${date
+    .toString()
+    .padStart(2, "0")}일 ${hour.toString().padStart(2, "0")}:${minute
+    .toString()
+    .padStart(2, "0")}* 기준 업데이트 내역 알려드립니다.\n\n`;
+  message += "```\n[할인]\n";
+
+  updateDiscountList.forEach((updatedDiscount, idx) => {
+    const title = `${idx + 1}. ${updatedDiscount.title}:`;
+    message += `${title} ${
+      updatedDiscount.discount_percent === "0"
+        ? `할인 종료\n`
+        : `${updatedDiscount.discount_percent}% 할인 중\n`
+    }`;
+  });
+  if (updateDiscountList.length === 0)
+    message += "현재 별도의 할인 업데이트는 없습니다.";
+
+  message += "\n\n[빌드 업데이트]\n";
+
+  updatedBuildList.forEach((updatedBuild, idx) => {
+    const updateTime = new Date(parseInt(updatedBuild.time_updated) * 1000);
+    const year = updateTime.getFullYear();
+    const month = updateTime.getMonth() + 1;
+    const date = updateTime.getDate();
+    const hour = updateTime.getHours();
+    const minute = updateTime.getMinutes();
+    const time = `${year}-${month.toString().padStart(2, "0")}-${date
+      .toString()
+      .padStart(2, "0")} ${hour.toString().padStart(2, "0")}:${minute
+      .toString()
+      .padStart(2, "0")}`;
+    const title = `${idx + 1}. ${updatedBuild.title}:`;
+    message += `${title} ${time}에 업데이트됨\n`;
   });
 
-  updatedBuildList.forEach((updatedBuild) => {
-    // Here, the smilehub message will be merged and sent.
-  });
+  if (updatedBuildList.length === 0)
+    message += "현재 별도의 빌드 업데이트는 없습니다.";
+
+  message += "```";
+
+  console.log(message);
+  await axios.post(
+    process.env.URL_SMILEHUB_WEBHOOK,
+    JSON.stringify({ text: message }),
+    { headers: { "Content-Type": "application/json" } }
+  );
 };
 
 run();
