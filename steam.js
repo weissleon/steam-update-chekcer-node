@@ -1,4 +1,6 @@
 const { default: axios } = require("axios");
+const https = require("https");
+const crypto = require("crypto");
 
 const updateInfoFor = async (pageId, type, properties = {}) => {
   const payload =
@@ -34,6 +36,9 @@ const updateInfoFor = async (pageId, type, properties = {}) => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -131,6 +136,9 @@ const createDBRowFor = async (appId, type, info = {}) => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -165,6 +173,10 @@ const getLatestAppBuildInfoFor = async (appId) => {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+        rejectUnauthorized: false,
+      }),
     }
   );
   const { buildid: buildId, timeupdated: timeUpdated } =
@@ -183,6 +195,10 @@ const getDiscountInfoFor = async (appId) => {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+        rejectUnauthorized: false,
+      }),
     }
   );
   const discountPercent =
@@ -213,6 +229,9 @@ const checkEntryExistFor = async (appId, type) => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -256,6 +275,9 @@ const getAppBaseInfo = async () => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -285,6 +307,9 @@ const getAppBuildInfo = async () => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -315,6 +340,9 @@ const getAppDiscountInfo = async () => {
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
       },
+      httpsAgent: new https.Agent({
+        secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      }),
     }
   );
 
@@ -351,7 +379,12 @@ const run = async () => {
             await updateInfoFor(data.id, "discount", {
               discount_percent,
             });
-            updateDiscountList.push(data);
+            updateDiscountList.push({
+              id: data.id,
+              title: data.title,
+              app_id,
+              discount_percent,
+            });
           }
         } else {
           const data = await createDBRowFor(app_id, "discount", {
@@ -380,7 +413,13 @@ const run = async () => {
               build_id: build_id,
               time_updated: time_updated,
             });
-            updatedBuildList.push(data);
+            updatedBuildList.push({
+              id: data.id,
+              app_id,
+              title: data.title,
+              build_id,
+              time_updated,
+            });
           }
         } else {
           const data = await createDBRowFor(app_id, "build", {
@@ -420,8 +459,7 @@ const run = async () => {
         : `${updatedDiscount.discount_percent}% 할인 중\n`
     }`;
   });
-  if (updateDiscountList.length === 0)
-    message += "현재 별도의 할인 업데이트는 없습니다.";
+  if (updateDiscountList.length === 0) message += "없음.";
 
   message += "\n\n[빌드 업데이트]\n";
 
@@ -441,8 +479,7 @@ const run = async () => {
     message += `${title} ${time}에 업데이트됨\n`;
   });
 
-  if (updatedBuildList.length === 0)
-    message += "현재 별도의 빌드 업데이트는 없습니다.";
+  if (updatedBuildList.length === 0) message += "없음.";
 
   message += "```";
 
