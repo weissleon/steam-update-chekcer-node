@@ -179,8 +179,27 @@ const getLatestAppBuildInfoFor = async (appId) => {
       }),
     }
   );
-  const { buildid: buildId, timeupdated: timeUpdated } =
-    response.data["data"][appId]["depots"]["branches"]["public"];
+  // const { buildid: buildId, timeupdated: timeUpdated } =
+  //   response.data["data"][appId]["depots"]["branches"]["public"];
+  let fields = null;
+  fields = response.data["data"][appId];
+
+  let buildId = "";
+  let timeUpdated = "";
+
+  if (fields["depots"] === undefined) {
+    buildId =
+      response.data["data"][appId]["common"]["steam_deck_compatibility"][
+        "tested_build_id"
+      ];
+    timeUpdated =
+      response.data["data"][appId]["common"]["steam_deck_compatibility"][
+        "test_timestamp"
+      ];
+  } else {
+    buildId = fields["depots"]["branches"]["public"]["buildid"];
+    timeUpdated = fields["depots"]["branches"]["public"]["timeupdated"];
+  }
 
   const data = { app_id: appId, build_id: buildId, time_updated: timeUpdated };
 
