@@ -18,7 +18,9 @@ const getDiscountInfoFor = async (appId) => {
     }),
   });
   const discountPercent =
-    response.data[appId]["data"]["price_overview"]["discount_percent"];
+    response.data[appId]["data"]["price_overview"] !== undefined
+      ? response.data[appId]["data"]["price_overview"]["discount_percent"]
+      : "0";
 
   const data = {
     app_id: `${appId}`,

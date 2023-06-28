@@ -161,21 +161,6 @@ const run = async () => {
   message +=
     "```\n- 😁 : only 스토브\n- 😜 : 스팀 < 스토브\n- 🥶 : 스팀 > 스토브\n- 🤬 : only 스팀\n- 🤗 : 스토브 = 스팀```\n";
 
-  // message += "```\n [할인]\n";
-
-  // discountChangeList = discountChangeList.sort((a, b) =>
-  //   a.appName.localeCompare(b.appName)
-  // );
-  // for (let i = 0; i < discountChangeList.length; i++) {
-  //   const app = discountChangeList[i];
-  //   const title = `${i + 1}. ${app.appName}:`;
-  //   message += `${title} ${
-  //     app.rate === "0" ? `할인 종료\n` : `${app.rate}% 할인 중\n`
-  //   }`;
-  // }
-  // if (discountChangeList.length === 0) message += "없음.";
-
-  // message += "\n\n[스토브 할인 비교]\n";
   message += ":sg_ohno: *[스팀 vs 스토브 할인 비교]*\n```\n";
 
   diffList = diffList.sort((a, b) => a.appName.localeCompare(b.appName));
@@ -189,7 +174,7 @@ const run = async () => {
         Number.parseInt(app.stove_discount_rate) &&
       Number.parseInt(app.stove_discount_rate) !== 0
     )
-      statusIcon = "😋";
+      statusIcon = "😜";
 
     if (
       Number.parseInt(app.steam_discount_rate) > 0 &&
@@ -211,7 +196,6 @@ const run = async () => {
     const title = `${(i + 1).toString().padStart(3, "0")} ${statusIcon} [${
       app.appName
     }]`;
-    // const title = `${statusIcon} ${i + 1}. ${app.appName}:`;
     message += `${title} 스팀: ${app.steam_discount_rate}% 스토브: ${
       app.stove_discount_rate
     }% ${newIcon}${i !== diffList.length - 1 ? "\n" : ""}`;
